@@ -2,43 +2,36 @@ import fitz  # PyMuPDF
 from pathlib import Path
 
 
-def extract_text(pdf_path: Path) -> str:
+def extract_text(pdf_path: Path) -> list[str]:
     """
-    Extracts all text from a PDF file.
+    Extracts text from each page of a PDF file and returns a list of page texts.
 
     Args:
         pdf_path (Path): Path to the PDF file.
 
     Returns:
-        str: Extracted text from all pages.
+        list[str]: Extracted text for each page.
 
     Raises:
         FileNotFoundError: If the PDF file does not exist.
         RuntimeError: If the PDF cannot be opened or read.
     """
 
-    # Check if the file exists
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
     try:
-        # Open the PDF
         document = fitz.open(pdf_path)
 
-        extracted_text = []
+        page_texts: list[str] = []
 
-        # Loop through every page
         for page in document:
             page_text = page.get_text()
+            page_texts.append(page_text or "")
 
-            if page_text:
-                extracted_text.append(page_text)
-
-        # Close the document
         document.close()
 
-        # Combine all page text
-        return "\n".join(extracted_text)
+        return page_texts
 
     except Exception as error:
         raise RuntimeError(f"Error extracting text from PDF: {error}")

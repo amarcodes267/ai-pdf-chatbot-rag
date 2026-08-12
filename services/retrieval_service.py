@@ -19,6 +19,9 @@ class RetrievalService:
         query_embedding = generate_embeddings([query])[0]
 
         # Search ChromaDB
+        if self.vector_store.is_empty():
+            return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+
         results = self.vector_store.search(
             query_embedding=query_embedding,
             top_k=top_k

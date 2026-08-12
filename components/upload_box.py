@@ -8,10 +8,10 @@ def render_upload_box():
     """
 
     uploaded_file = st.file_uploader(
-        label="Upload a PDF",
+        label="Upload PDF(s)",
         type=["pdf"],
-        accept_multiple_files=False,
-        help="Only PDF files are allowed."
+        accept_multiple_files=True,
+        help="You can upload one or more PDF files."
     )
 
     return uploaded_file
