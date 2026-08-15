@@ -1,0 +1,42 @@
+# ======================================================================
+# Render Blueprint — deploy the AI PDF Chatbot (RAG) web service
+# References: https://render.com/docs/blueprint-spec
+#
+# HOW TO USE
+#   1. Push this repository to GitHub or GitLab.
+#   2. In the Render dashboard choose: New > Blueprint.
+#   3. Select this repository — Render reads render.yaml and creates
+#      the "ai-pdf-chatbot-rag" web service automatically.
+#   4. When prompted for OPENAI_API_KEY, paste your key (or leave it
+#      empty — the app then falls back to a local summary).
+#
+# NOTES
+#   - Python version is pinned in the .python-version file.
+#   - Streamlit must bind to $PORT and 0.0.0.0 on Render.
+#   - Health check uses Streamlit's built-in /_stcore/health endpoint.
+#   - The free plan has ~512 MB RAM. Loading the embedding model plus
+#     ChromaDB needs ~1 GB, so prefer at least the "starter" plan for
+#     a smooth experience.
+#   - The native runtime filesystem is ephemeral: on every deploy or
+#     restart the vector store (data/chroma_db) is recreated and
+#     uploaded PDFs do NOT persist. This is expected for a demo.
+# ======================================================================
+
+services:
+  - type: web
+    name: ai-pdf-chatbot-rag
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true"
+    healthCheckPath: /_stcore/health
+    autoDeploy: true
+    envVars:
+      # Optional — sync: false prompts you for the value in the
+      # Render dashboard instead of storing the secret in this file.
+      - key: OPENAI_API_KEY
+        sync: false
+      # Optional — override the OpenAI chat model used for answers.
+      - key: OPENAI_MODEL
+        value: gpt-3.5-turbo

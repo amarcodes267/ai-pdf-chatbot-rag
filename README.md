@@ -82,6 +82,8 @@ Key modules are under `services/` and the UI components under `components/` with
 	- `chat_service.py` — Streamlit session-based chat history
 - `data/` — stores `uploads/` and `chroma_db/` (persistent vector store)
 - `requirements.txt` — minimal dependency list
+- `render.yaml` — Render Blueprint for deploying the web service
+- `.python-version` — pins the Python version used on Render / local tooling
 - `README.md` — this document
 
 ---
@@ -118,14 +120,11 @@ Notes: Some packages (embedding models) will download model data at first run; e
 The application uses environment variables to configure optional LLM behavior.
 
 - `OPENAI_API_KEY` — Set this if you want the app to use OpenAI for responses. If omitted, a local deterministic fallback summary is used.
+- `OPENAI_MODEL` — (optional) override the chat model (default `gpt-3.5-turbo`).
 
-Example (PowerShell):
+A template is provided in `.env.example`. Secrets are read from environment variables only — never hardcode them in source files. The `.env` file is gitignored.
 
-```powershell
-$env:OPENAI_API_KEY = "sk-..."
-```
-
-ChromaDB persists data under `data/chroma_db` by default. Uploaded PDFs are stored in `data/uploads`.
+ChromaDB persists data under `data/chroma_db` by default. Uploaded PDFs are stored in `data/uploads`. Both directories are regenerated at runtime and are gitignored (they are not part of the repository).
 
 ---
 
@@ -146,6 +145,32 @@ Workflow inside the app:
 3. Click `Process uploaded PDF(s)` to extract, chunk, embed, and index documents.
 4. Enter a question in the chat input and click `Send`.
 5. The assistant will return an answer and a list of source snippets showing where the answer came from.
+
+---
+
+## Deployment — Render
+
+This repository ships a ready-to-use [Render Blueprint](https://render.com/docs/blueprint-spec) (`render.yaml`) plus a `.python-version` file that pins the Python runtime (3.12).
+
+### One-click Blueprint deploy
+
+1. Push the repository to GitHub or GitLab.
+2. In the Render dashboard, choose **New → Blueprint**.
+3. Select this repository — Render reads `render.yaml` and creates the `ai-pdf-chatbot-rag` web service automatically.
+4. When prompted, enter your `OPENAI_API_KEY` (optional — the app falls back to a local summary if omitted).
+
+The service starts with:
+
+```bash
+streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
+```
+
+### Important deployment notes
+
+- **Ephemeral filesystem:** Render's native Python runtime does not persist files between deploys/restarts. Uploaded PDFs and the ChromaDB store in `data/` are recreated at runtime and **do not survive a redeploy**. Vector data must be re-ingested after each deploy.
+- **Memory:** Loading the `all-MiniLM-L6-v2` embedding model plus ChromaDB needs roughly 1 GB RAM. The free plan (~512 MB) may restart under load; prefer the **Starter** plan or higher.
+- **First build** downloads the embedding model (~90 MB), which can take several minutes — this is normal.
+- **Health check:** `/_stcore/health` (Streamlit's built-in endpoint) is used so Render probes the running server.
 
 ---
 
@@ -175,6 +200,23 @@ Automated tests are not included in this repository by default; consider adding 
 
 ---
 
+## Deployment and Production Readiness
+
+Before deploying, keep the following in mind:
+
+- **Environment variables:** `OPENAI_API_KEY` must be set at runtime for grounded LLM answers. Without it, the app falls back to showing a retrieved-context summary (configurable path only).
+- **Dependencies:** install with `pip install -r requirements.txt` (Python 3.11+ recommended).
+- **Startup command:** `streamlit run app.py`.
+- **File storage:** uploaded PDFs are written to `data/uploads`. On serverless/ephemeral filesystems, persisted PDFs are not kept across restarts — the ChromaDB index (which holds the chunk text) is the source of truth for retrieval.
+- **ChromaDB persistence:** the vector store lives in `data/chroma_db`. This directory must be writable and persistent across restarts for stored documents to survive. It is local-only; multi-user/true serverless deployments should move to a remote ChromaDB backend or re-ingest documents per session.
+- **Embedding model:** `all-MiniLM-L6-v2` is downloaded on first run (network + ~90 MB disk) and loaded into memory (~0.5 GB with the sentence-transformers stack).
+- **Memory:** loading the embedding model plus ChromaDB requires roughly 1 GB RAM. For cloud platforms, request adequate memory.
+- **LLM requirement:** OpenAI access (network + valid key) is required for production-quality answers. Ensure the runtime can reach `api.openai.com`.
+
+> Note: The source `similarity` value displayed in the UI is a normalized score in `[0, 1]` derived from ChromaDB's distance (higher = more relevant). ChromaDB's default metric is squared-L2, so the ranking (not the raw number) is the meaningful signal.
+
+---
+
 ## Troubleshooting and Tips
 
 - Slow embedding/model loading: The `sentence-transformers` model will download on first run. This can take time and disk space.
@@ -194,16 +236,3 @@ Automated tests are not included in this repository by default; consider adding 
 
 ---
 
-## License
-
-This repository is provided for demonstration purposes. Add a license file (e.g., `LICENSE`) if you intend to make this project public.
-
----
-
-If you want, I can:
-
-- Add a `LICENSE` file
-- Create basic `pytest` unit tests for critical services
-- Improve the UI visuals and source cards
-
-Tell me which of the above you'd like next.

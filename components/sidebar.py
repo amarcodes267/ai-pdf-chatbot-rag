@@ -25,8 +25,8 @@ def render_sidebar():
 - LangChain
 - ChromaDB
 - Sentence Transformers
-- Ollama
 - PyMuPDF
+- OpenAI (optional)
 """)
 
         st.markdown("---")

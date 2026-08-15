@@ -77,13 +77,9 @@ class VectorStore:
             count = getattr(self.collection, "count", None)
             if callable(count):
                 return count() == 0
-
-            # Fallback: attempt a small query and see if documents returned
-            res = self.collection.query(query_embeddings=[[0.0]*1], n_results=1)
-            docs = res.get("documents", [])
-            return not docs or not docs[0]
         except Exception:
-            return False
+            pass
+        return False
 
     def clear_database(self):
         """

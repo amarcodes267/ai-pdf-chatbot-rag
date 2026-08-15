@@ -1,5 +1,4 @@
 import os
-import json
 
 from typing import Optional
 
@@ -15,14 +14,16 @@ def _openai_available() -> bool:
 
 def generate_answer(context: str, question: str, model: Optional[str] = None) -> str:
     if _openai_available():
-        import openai  # type: ignore
+        from openai import OpenAI
 
         api_key = os.environ.get("OPENAI_API_KEY")
-        openai.api_key = api_key
+        client = OpenAI(api_key=api_key)
 
         system_prompt = (
-            "You are an assistant that answers user questions using only the provided context. "
-            "If the answer is not in the context, say you don't know. Be concise."
+            "You are an assistant that answers questions using ONLY the provided "
+            "context documents. If the answer is not present in the context, explicitly "
+            "state that the information was not found in the provided documents. "
+            "Be concise and do not invent facts."
         )
 
         messages = [
@@ -31,25 +32,26 @@ def generate_answer(context: str, question: str, model: Optional[str] = None) ->
         ]
 
         try:
-            resp = openai.ChatCompletion.create(
-                model=model or "gpt-3.5-turbo",
+            resp = client.chat.completions.create(
+                model=model or "gpt-4o-mini",
                 messages=messages,
                 temperature=0.0,
                 max_tokens=512,
             )
 
-            return resp.choices[0].message.content.strip()
+            content = resp.choices[0].message.content
+            return content.strip() if content else "I could not generate an answer."
         except Exception as e:
             return f"LLM error: {e}"
 
     # Fallback: simple heuristic answer when no external LLM is configured
     snippet = context[:1500]
     answer = (
-        "Using local fallback (no LLM configured). Here is relevant context summary:\n\n"
+        "No LLM is configured. Here is the most relevant context from your documents:\n\n"
         + snippet
         + "\n\nQuestion: "
         + question
-        + "\n\nNote: Configure OPENAI_API_KEY to enable better responses."
+        + "\n\nNote: Set OPENAI_API_KEY to enable AI-generated answers."
     )
 
     return answer

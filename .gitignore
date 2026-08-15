@@ -3,20 +3,32 @@ __pycache__/
 *.py[cod]
 *.so
 *.pyd
+.venv/
 venv/
+# Environment & secrets
 .env
 .env.*
 *.env
+!*.env.example
+# OS / editor artifacts
 .DS_Store
 .idea/
 .vscode/
 *.log
+# Databases / persistent app data (regenerated at runtime)
 *.sqlite3
 *.db
 *.db3
 *.sqlite
+data/chroma_db/
+data/uploads/
+# Test & tooling caches
+.pytest_cache/
+.qodo/
+.kilo/
 # Python packaging
 *.egg-info/
 .eggs/
 build/
 dist/
+

@@ -21,7 +21,7 @@ def generate_embeddings(chunks: list[str]) -> list[list[float]]:
     embeddings = embedding_model.encode(
         chunks,
         convert_to_numpy=True,
-        show_progress_bar=True
+        show_progress_bar=False
     )
 
     return embeddings.tolist()

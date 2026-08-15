@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 
 from components.upload_box import render_upload_box
+from components.sidebar import render_sidebar
 from services.pdf_service import save_pdf
 from services.text_extractor import extract_text
 from services.text_cleaner import clean_text
@@ -11,6 +12,17 @@ from services.vector_store import VectorStore
 from services.chat_service import ChatService
 from services.rag_service import RAGService
 from utils.constants import CHUNK_SIZE, CHUNK_OVERLAP, TOP_K_RESULTS
+
+
+def _already_indexed(vector_store: VectorStore, filename: str) -> bool:
+    try:
+        results = vector_store.collection.get(
+            where={"source": filename},
+            limit=1,
+        )
+        return bool(results.get("ids"))
+    except Exception:
+        return False
 
 
 def render_chat_ui():
@@ -30,6 +42,10 @@ def render_chat_ui():
             with st.spinner("Processing PDFs — extracting, chunking, and creating embeddings..."):
                 for uploaded in uploaded_files:
                     try:
+                        if _already_indexed(vector_store, uploaded.name):
+                            st.info(f"'{uploaded.name}' is already indexed. Skipping.")
+                            continue
+
                         saved_path = save_pdf(uploaded)
                         page_texts = extract_text(Path(saved_path))
 
@@ -74,7 +90,9 @@ def render_chat_ui():
 
     if clear:
         chat.clear_chat()
-        st.experimental_rerun()
+        st.rerun()
+
+    sources = []
 
     if send:
         if not question or question.strip() == "":
@@ -90,7 +108,7 @@ def render_chat_ui():
                         response = rag.answer_question(question)
 
                         if isinstance(response, dict):
-                            answer = response.get("answer")
+                            answer = response.get("answer", "")
                             sources = response.get("sources", [])
                         else:
                             answer = str(response)
@@ -117,8 +135,7 @@ def render_chat_ui():
             else:
                 st.markdown(f"**Assistant:** {content}")
 
-    # Display last answer sources if available
-    if 'sources' in locals() and sources:
+    if sources:
         st.markdown("---")
         st.subheader("Sources")
         for src in sources:
@@ -140,3 +157,25 @@ def render_chat_ui():
 
                 st.write(text[:800] + ("..." if len(text) > 800 else ""))
 
+
+def render_main():
+    render_sidebar()
+    st.markdown("---")
+
+    st.title("📄 AI PDF Chatbot")
+
+    st.markdown(
+        """
+        Welcome to the **AI PDF Chatbot**.
+
+        Upload PDF documents, process them, and ask questions using retrieval-augmented generation.
+        """
+    )
+
+    st.markdown("---")
+
+    render_chat_ui()
+
+    st.markdown("---")
+
+    st.caption("Built with ❤️ using Streamlit | AI PDF Chatbot (RAG)")

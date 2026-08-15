@@ -10,7 +10,7 @@ class RAGService:
     def __init__(self):
         self.retriever = RetrievalService()
 
-    def answer_question(self, question: str) -> str:
+    def answer_question(self, question: str) -> dict:
         """
         Generate an answer for the user's question.
         """
@@ -44,11 +44,14 @@ class RAGService:
             meta = meta_list[idx] if idx < len(meta_list) else {}
             dist = dist_list[idx] if idx < len(dist_list) else None
 
+            raw_distance = float(dist) if dist is not None else None
+            similarity = round(1.0 / (1.0 + raw_distance), 4) if raw_distance is not None else None
+
             sources.append({
                 "document": meta.get("source") if meta else None,
                 "page": meta.get("page") if meta else None,
                 "chunk": meta.get("chunk") if meta else idx,
-                "similarity": float(dist) if dist is not None else None,
+                "similarity": similarity,
                 "text": doc,
             })
 
