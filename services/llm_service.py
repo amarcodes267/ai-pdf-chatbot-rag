@@ -15,7 +15,6 @@ def _gemini_available() -> bool:
 def generate_answer(context: str, question: str, model: Optional[str] = None) -> str:
     if _gemini_available():
         from google import genai
-        from google.genai import types
 
         client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
@@ -27,17 +26,14 @@ def generate_answer(context: str, question: str, model: Optional[str] = None) ->
         )
 
         try:
-            response = client.models.generate_content(
-                model=model or os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-                contents=f"Context:\n{context}\n\nQuestion: {question}",
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.0,
-                    max_output_tokens=512,
+            response = client.interactions.create(
+                model=model or os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
+                input=(
+                    f"{system_prompt}\n\nContext:\n{context}\n\nQuestion: {question}"
                 ),
             )
 
-            content = response.text
+            content = response.output_text
             return content.strip() if content else "I could not generate an answer."
         except Exception as e:
             return f"LLM error: {e}"

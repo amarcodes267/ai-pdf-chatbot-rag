@@ -38,4 +38,4 @@ services:
         sync: false
       # Optional — override the Gemini chat model used for answers.
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.7-flash

@@ -120,7 +120,7 @@ The app has no local model download, making it suitable for low-memory hosts.
 The application uses environment variables to configure optional LLM behavior.
 
 - `GEMINI_API_KEY` — Set this if you want the app to use Gemini for responses. If omitted, a local deterministic fallback summary is used.
-- `GEMINI_MODEL` — (optional) override the chat model (default `gemini-2.5-flash`).
+- `GEMINI_MODEL` — (optional) override the chat model (default `gemini-3.7-flash`).
 
 A template is provided in `.env.example`. Secrets are read from environment variables only — never hardcode them in source files. The `.env` file is gitignored.
 
