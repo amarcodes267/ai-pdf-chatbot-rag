@@ -7,7 +7,7 @@
 #   2. In the Render dashboard choose: New > Blueprint.
 #   3. Select this repository — Render reads render.yaml and creates
 #      the "ai-pdf-chatbot-rag" web service automatically.
-#   4. When prompted for OPENAI_API_KEY, paste your key (or leave it
+#   4. When prompted for GEMINI_API_KEY, paste your key (or leave it
 #      empty — the app then falls back to a local summary).
 #
 # NOTES
@@ -34,8 +34,8 @@ services:
     envVars:
       # Optional — sync: false prompts you for the value in the
       # Render dashboard instead of storing the secret in this file.
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      # Optional — override the OpenAI chat model used for answers.
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
+      # Optional — override the Gemini chat model used for answers.
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash

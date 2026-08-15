@@ -3,21 +3,21 @@ import os
 from typing import Optional
 
 
-def _openai_available() -> bool:
+def _gemini_available() -> bool:
     try:
-        import openai  # type: ignore
+        import google.genai  # type: ignore
 
-        return bool(os.environ.get("OPENAI_API_KEY"))
+        return bool(os.environ.get("GEMINI_API_KEY"))
     except Exception:
         return False
 
 
 def generate_answer(context: str, question: str, model: Optional[str] = None) -> str:
-    if _openai_available():
-        from openai import OpenAI
+    if _gemini_available():
+        from google import genai
+        from google.genai import types
 
-        api_key = os.environ.get("OPENAI_API_KEY")
-        client = OpenAI(api_key=api_key)
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
         system_prompt = (
             "You are an assistant that answers questions using ONLY the provided "
@@ -26,20 +26,18 @@ def generate_answer(context: str, question: str, model: Optional[str] = None) ->
             "Be concise and do not invent facts."
         )
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
-        ]
-
         try:
-            resp = client.chat.completions.create(
-                model=model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
-                messages=messages,
-                temperature=0.0,
-                max_tokens=512,
+            response = client.models.generate_content(
+                model=model or os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+                contents=f"Context:\n{context}\n\nQuestion: {question}",
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.0,
+                    max_output_tokens=512,
+                ),
             )
 
-            content = resp.choices[0].message.content
+            content = response.text
             return content.strip() if content else "I could not generate an answer."
         except Exception as e:
             return f"LLM error: {e}"
@@ -51,7 +49,7 @@ def generate_answer(context: str, question: str, model: Optional[str] = None) ->
         + snippet
         + "\n\nQuestion: "
         + question
-        + "\n\nNote: Set OPENAI_API_KEY to enable AI-generated answers."
+        + "\n\nNote: Set GEMINI_API_KEY to enable AI-generated answers."
     )
 
     return answer

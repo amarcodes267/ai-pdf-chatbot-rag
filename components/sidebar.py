@@ -26,7 +26,7 @@ def render_sidebar():
 - ChromaDB
 - Sentence Transformers
 - PyMuPDF
-- OpenAI (optional)
+- Google Gemini (optional)
 """)
 
         st.markdown("---")

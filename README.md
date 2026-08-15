@@ -9,7 +9,7 @@ This repository provides a lightweight pipeline to:
 - Split text into overlapping chunks with metadata (document, page, chunk)
 - Create lightweight hashed keyword vectors with no model download
 - Persist vectors and metadata in a compact local JSON index
-- Perform relevance retrieval and produce grounded answers using an LLM (OpenAI optional)
+- Perform relevance retrieval and produce grounded answers using an LLM (Google Gemini optional)
 - Display source references (document, page, chunk, similarity)
 
 ---
@@ -37,7 +37,7 @@ Table of Contents
 - Lightweight, dependency-free hashed keyword vectors
 - Persistence using a local JSON index (`data/document_index.json`)
 - Relevance retrieval with source metadata and similarity scores
-- Optional LLM generation using OpenAI (fallback summary available if not configured)
+- Optional LLM generation using Google Gemini (fallback summary available if not configured)
 - Streamlit UI with conversation history, loading states, and error handling
 
 ---
@@ -60,7 +60,7 @@ Key modules are under `services/` and the UI components under `components/` with
 - LangChain text splitters (for chunking)
 - Standard-library hashed vectors for retrieval
 - JSON file for vector storage
-- OpenAI (optional) for LLM responses
+- Google Gemini (optional) for LLM responses
 
 ---
 
@@ -78,7 +78,7 @@ Key modules are under `services/` and the UI components under `components/` with
 	- `vector_store.py` — JSON index wrapper (add/search/clear)
 	- `retrieval_service.py` — query embedding + search wrapper
 	- `rag_service.py` — retrieval + LLM orchestration
-	- `llm_service.py` — LLM adapter (OpenAI optional fallback)
+	- `llm_service.py` — LLM adapter (Google Gemini optional fallback)
 	- `chat_service.py` — Streamlit session-based chat history
 - `data/` — stores `uploads/` and `document_index.json` (local vector index)
 - `requirements.txt` — minimal dependency list
@@ -119,8 +119,8 @@ The app has no local model download, making it suitable for low-memory hosts.
 
 The application uses environment variables to configure optional LLM behavior.
 
-- `OPENAI_API_KEY` — Set this if you want the app to use OpenAI for responses. If omitted, a local deterministic fallback summary is used.
-- `OPENAI_MODEL` — (optional) override the chat model (default `gpt-4o-mini`).
+- `GEMINI_API_KEY` — Set this if you want the app to use Gemini for responses. If omitted, a local deterministic fallback summary is used.
+- `GEMINI_MODEL` — (optional) override the chat model (default `gemini-2.5-flash`).
 
 A template is provided in `.env.example`. Secrets are read from environment variables only — never hardcode them in source files. The `.env` file is gitignored.
 
@@ -157,7 +157,7 @@ This repository ships a ready-to-use [Render Blueprint](https://render.com/docs/
 1. Push the repository to GitHub or GitLab.
 2. In the Render dashboard, choose **New → Blueprint**.
 3. Select this repository — Render reads `render.yaml` and creates the `ai-pdf-chatbot-rag` web service automatically.
-4. When prompted, enter your `OPENAI_API_KEY` (optional — the app falls back to a local summary if omitted).
+4. When prompted, enter your `GEMINI_API_KEY` (optional — the app falls back to a local summary if omitted).
 
 The service starts with:
 
@@ -180,7 +180,7 @@ streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headl
 3. Vectors: Chunks are converted to compact hashed keyword vectors.
 4. Vector store: A JSON index stores vectors, chunk text, and metadata for retrieval.
 5. Retrieval: The question vector ranks the top-K most relevant chunks.
-6. Prompting & LLM: Retrieved chunks are combined into a context and sent to the configured LLM (OpenAI by default). If no LLM is configured, a fallback summary is returned.
+6. Prompting & LLM: Retrieved chunks are combined into a context and sent to the configured LLM (Gemini by default). If no LLM is configured, a fallback summary is returned.
 7. Sources: The app displays the retrieved chunks and their metadata alongside the answer so users can verify the citation.
 
 ---
@@ -203,13 +203,13 @@ Automated tests are not included in this repository by default; consider adding 
 
 Before deploying, keep the following in mind:
 
-- **Environment variables:** `OPENAI_API_KEY` must be set at runtime for grounded LLM answers. Without it, the app falls back to showing a retrieved-context summary (configurable path only).
+- **Environment variables:** `GEMINI_API_KEY` must be set at runtime for grounded LLM answers. Without it, the app falls back to showing a retrieved-context summary (configurable path only).
 - **Dependencies:** install with `pip install -r requirements.txt` (Python 3.11+ recommended).
 - **Startup command:** `streamlit run app.py`.
 - **File storage:** uploaded PDFs and the JSON index are written under `data/`; Render clears them after restarts.
 - **Index persistence:** `data/document_index.json` is local-only. Re-ingest documents after a restart, or use external storage for durable multi-user deployments.
 - **Retrieval quality:** keyword vectors are intentionally lightweight. Exact terms work well; semantic paraphrases are less reliable than transformer embeddings.
-- **LLM requirement:** OpenAI access (network + valid key) is required for production-quality answers. Ensure the runtime can reach `api.openai.com`.
+- **LLM requirement:** Gemini access (network + valid key) is required for production-quality answers. Ensure the runtime can reach Google's Gemini API.
 
 > Note: Source similarity is a normalized cosine score in `[0, 1]` from the hashed keyword vectors. Ranking is more meaningful than the raw number.
 
@@ -218,7 +218,7 @@ Before deploying, keep the following in mind:
 ## Troubleshooting and Tips
 
 - Index errors: Ensure the application has write permission for the `data/` directory.
-- LLM errors: If using OpenAI, confirm `OPENAI_API_KEY` is set and has available quota.
+- LLM errors: If using Gemini, confirm `GEMINI_API_KEY` is set and has available quota.
 - Large PDFs: Very large PDFs may create many chunks; consider increasing `CHUNK_SIZE` or reducing upload size.
 
 ---
