@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import chromadb
-
 
 CHROMA_DB_PATH = "data/chroma_db"
 COLLECTION_NAME = "pdf_documents"
@@ -15,7 +13,11 @@ class VectorStore:
     def __init__(self):
         """
         Initialize ChromaDB.
+
+        chromadb is imported here (instead of at module top) so the app
+        starts faster and uses less memory on constrained hosts.
         """
+        import chromadb
 
         # Create the database directory
         Path(CHROMA_DB_PATH).mkdir(
