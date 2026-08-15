@@ -1,6 +1,5 @@
-import os
 from io import BytesIO
-from services.pdf_service import save_pdf
+from services import pdf_service
 
 
 class DummyUploaded:
@@ -12,17 +11,22 @@ class DummyUploaded:
         return self._buf.getbuffer()
 
 
-def test_save_pdf_writes_file_and_returns_path(tmp_path):
+def test_save_pdf_writes_file_and_returns_path(tmp_path, monkeypatch):
     # Create a small dummy PDF-like byte content
     dummy = DummyUploaded("sample.pdf", b"%PDF-1.4\n%EOF")
 
-    # Temporarily change uploads dir via environment if needed - here function writes to data/uploads
-    saved = save_pdf(dummy)
+    monkeypatch.setattr(pdf_service, "UPLOAD_DIR", tmp_path)
+    saved = pdf_service.save_pdf(dummy)
 
-    assert os.path.exists(saved)
+    assert saved.exists()
+    assert saved.read_bytes() == b"%PDF-1.4\n%EOF"
+    assert saved.name.endswith("_sample.pdf")
 
-    # Clean up
-    try:
-        os.remove(saved)
-    except Exception:
-        pass
+
+def test_save_pdf_rejects_path_traversal_filename(tmp_path, monkeypatch):
+    monkeypatch.setattr(pdf_service, "UPLOAD_DIR", tmp_path)
+
+    saved = pdf_service.save_pdf(DummyUploaded("../sample.pdf", b"PDF"))
+
+    assert saved.parent == tmp_path
+    assert saved.name.endswith("_sample.pdf")

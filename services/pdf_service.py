@@ -1,9 +1,10 @@
 from pathlib import Path
-from datetime import datetime
+from uuid import uuid4
 
 from utils.constants import ALLOWED_FILE_TYPES, MAX_FILE_SIZE
 
-UPLOAD_DIR = Path("data/uploads")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+UPLOAD_DIR = PROJECT_ROOT / "data" / "uploads"
 
 
 def save_pdf(uploaded_file):
@@ -15,7 +16,9 @@ def save_pdf(uploaded_file):
     if uploaded_file is None:
         raise ValueError("No file uploaded.")
 
-    filename = getattr(uploaded_file, "name", "")
+    filename = Path(str(getattr(uploaded_file, "name", ""))).name
+    if not filename:
+        raise ValueError("Uploaded file must have a filename.")
     ext = Path(filename).suffix.lower().lstrip(".")
 
     if ext not in ALLOWED_FILE_TYPES:
@@ -32,9 +35,9 @@ def save_pdf(uploaded_file):
     # Create uploads folder if it doesn't exist
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Create a unique filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_name = f"{timestamp}_{filename}"
+    # Keep the original name for display while preventing path traversal and
+    # collisions between uploads received in the same second.
+    safe_name = f"{uuid4().hex}_{filename}"
 
     file_path = UPLOAD_DIR / safe_name
 

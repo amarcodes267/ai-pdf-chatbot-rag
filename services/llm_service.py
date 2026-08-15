@@ -33,7 +33,7 @@ def generate_answer(context: str, question: str, model: Optional[str] = None) ->
 
         try:
             resp = client.chat.completions.create(
-                model=model or "gpt-4o-mini",
+                model=model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
                 messages=messages,
                 temperature=0.0,
                 max_tokens=512,

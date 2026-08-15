@@ -1,5 +1,6 @@
 from services.retrieval_service import RetrievalService
 from services.llm_service import generate_answer
+from utils.constants import TOP_K_RESULTS
 
 
 class RAGService:
@@ -15,7 +16,7 @@ class RAGService:
         Generate an answer for the user's question.
         """
 
-        results = self.retriever.retrieve(question)
+        results = self.retriever.retrieve(question, top_k=TOP_K_RESULTS)
 
         documents = results.get("documents", [])
         metadatas = results.get("metadatas", [])

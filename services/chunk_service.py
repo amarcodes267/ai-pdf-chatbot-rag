@@ -1,4 +1,24 @@
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+def _split_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive.")
+    if not 0 <= chunk_overlap < chunk_size:
+        raise ValueError("chunk_overlap must be at least 0 and smaller than chunk_size.")
+
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        if end < len(text):
+            boundary = max(text.rfind("\n", start, end), text.rfind(" ", start, end))
+            if boundary > start + (chunk_size // 2):
+                end = boundary
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= len(text):
+            break
+        start = max(end - chunk_overlap, start + 1)
+    return chunks
 
 
 def create_chunks(
@@ -18,21 +38,7 @@ def create_chunks(
         list[str]: List of text chunks.
     """
 
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=[
-            "\n\n",
-            "\n",
-            ". ",
-            " ",
-            ""
-        ]
-    )
-
-    chunks = text_splitter.split_text(text)
-
-    return chunks
+    return _split_text(text, chunk_size, chunk_overlap)
 
 
 def create_chunks_from_pages(
@@ -49,17 +55,11 @@ def create_chunks_from_pages(
     all_chunks: list[str] = []
     metadatas: list[dict] = []
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=["\n\n", "\n", ". ", " ", ""]
-    )
-
     for page_idx, page_text in enumerate(page_texts, start=1):
         if not page_text:
             continue
 
-        chunks = splitter.split_text(page_text)
+        chunks = _split_text(page_text, chunk_size, chunk_overlap)
 
         for chunk_idx, chunk in enumerate(chunks, start=1):
             all_chunks.append(chunk)

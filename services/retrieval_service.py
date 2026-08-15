@@ -4,7 +4,7 @@ from services.vector_store import VectorStore
 
 class RetrievalService:
     """
-    Handles semantic retrieval from ChromaDB.
+    Handles lightweight keyword retrieval from the local index.
     """
 
     def __init__(self):
@@ -15,10 +15,14 @@ class RetrievalService:
         Retrieve the most relevant chunks for a query.
         """
 
+        query = query.strip()
+        if not query:
+            return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+
         # Generate embedding for the user query
         query_embedding = generate_embeddings([query])[0]
 
-        # Search ChromaDB
+        # Search the local index.
         if self.vector_store.is_empty():
             return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
 

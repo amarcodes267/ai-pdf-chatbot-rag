@@ -7,9 +7,9 @@ This repository provides a lightweight pipeline to:
 - Upload one or more PDF documents
 - Extract and clean text from PDFs (page-level)
 - Split text into overlapping chunks with metadata (document, page, chunk)
-- Generate semantic embeddings (SentenceTransformers)
-- Persist embeddings and metadata in a ChromaDB vector store
-- Perform semantic retrieval and produce grounded answers using an LLM (OpenAI optional)
+- Create lightweight hashed keyword vectors with no model download
+- Persist vectors and metadata in a compact local JSON index
+- Perform relevance retrieval and produce grounded answers using an LLM (OpenAI optional)
 - Display source references (document, page, chunk, similarity)
 
 ---
@@ -34,9 +34,9 @@ Table of Contents
 
 - Multi-file PDF upload and processing
 - Page-level extraction and chunking with overlap for better context
-- Embeddings via `sentence-transformers` (`all-MiniLM-L6-v2` by default)
-- Persistence using ChromaDB (local persistent store in `data/chroma_db`)
-- Semantic search and retrieval with source metadata and similarity scores
+- Lightweight, dependency-free hashed keyword vectors
+- Persistence using a local JSON index (`data/document_index.json`)
+- Relevance retrieval with source metadata and similarity scores
 - Optional LLM generation using OpenAI (fallback summary available if not configured)
 - Streamlit UI with conversation history, loading states, and error handling
 
@@ -46,7 +46,7 @@ Table of Contents
 
 The app follows a simple, modular pipeline:
 
-PDF Upload → PDF Extraction (page-level) → Text Cleaning → Chunking → Embeddings → Vector Store (ChromaDB) → Retrieval → Prompting → LLM → Answer + Sources
+PDF Upload → PDF Extraction (page-level) → Text Cleaning → Chunking → Lightweight vectors → JSON index → Retrieval → Prompting → LLM → Answer + Sources
 
 Key modules are under `services/` and the UI components under `components/` with an overall `chat_ui.py` that coordinates the workflow.
 
@@ -58,8 +58,8 @@ Key modules are under `services/` and the UI components under `components/` with
 - Streamlit (UI)
 - PyMuPDF (`fitz`) for PDF extraction
 - LangChain text splitters (for chunking)
-- Sentence Transformers for embeddings
-- ChromaDB for vector storage
+- Standard-library hashed vectors for retrieval
+- JSON file for vector storage
 - OpenAI (optional) for LLM responses
 
 ---
@@ -74,13 +74,13 @@ Key modules are under `services/` and the UI components under `components/` with
 	- `text_extractor.py` — page-level extraction from PDFs
 	- `text_cleaner.py` — basic text cleaning
 	- `chunk_service.py` — chunking and metadata generation
-	- `embedding_service.py` — sentence-transformers embeddings
-	- `vector_store.py` — ChromaDB wrapper (add/search/clear)
+	- `embedding_service.py` — lightweight hashed keyword vectors
+	- `vector_store.py` — JSON index wrapper (add/search/clear)
 	- `retrieval_service.py` — query embedding + search wrapper
 	- `rag_service.py` — retrieval + LLM orchestration
 	- `llm_service.py` — LLM adapter (OpenAI optional fallback)
 	- `chat_service.py` — Streamlit session-based chat history
-- `data/` — stores `uploads/` and `chroma_db/` (persistent vector store)
+- `data/` — stores `uploads/` and `document_index.json` (local vector index)
 - `requirements.txt` — minimal dependency list
 - `render.yaml` — Render Blueprint for deploying the web service
 - `.python-version` — pins the Python version used on Render / local tooling
@@ -111,7 +111,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Notes: Some packages (embedding models) will download model data at first run; ensure you have network access and sufficient disk space.
+The app has no local model download, making it suitable for low-memory hosts.
 
 ---
 
@@ -120,11 +120,11 @@ Notes: Some packages (embedding models) will download model data at first run; e
 The application uses environment variables to configure optional LLM behavior.
 
 - `OPENAI_API_KEY` — Set this if you want the app to use OpenAI for responses. If omitted, a local deterministic fallback summary is used.
-- `OPENAI_MODEL` — (optional) override the chat model (default `gpt-3.5-turbo`).
+- `OPENAI_MODEL` — (optional) override the chat model (default `gpt-4o-mini`).
 
 A template is provided in `.env.example`. Secrets are read from environment variables only — never hardcode them in source files. The `.env` file is gitignored.
 
-ChromaDB persists data under `data/chroma_db` by default. Uploaded PDFs are stored in `data/uploads`. Both directories are regenerated at runtime and are gitignored (they are not part of the repository).
+The local index persists under `data/document_index.json`. Uploaded PDFs are stored in `data/uploads`. Both are regenerated at runtime and are gitignored.
 
 ---
 
@@ -167,9 +167,8 @@ streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headl
 
 ### Important deployment notes
 
-- **Ephemeral filesystem:** Render's native Python runtime does not persist files between deploys/restarts. Uploaded PDFs and the ChromaDB store in `data/` are recreated at runtime and **do not survive a redeploy**. Vector data must be re-ingested after each deploy.
-- **Memory:** Loading the `all-MiniLM-L6-v2` embedding model plus ChromaDB needs roughly 1 GB RAM. The free plan (~512 MB) may restart under load; prefer the **Starter** plan or higher.
-- **First build** downloads the embedding model (~90 MB), which can take several minutes — this is normal.
+- **Free-plan memory:** This version uses lightweight local vectors and a JSON index, so it is designed for Render's 512 MB free plan.
+- **Ephemeral filesystem:** Render's native runtime does not persist uploaded PDFs or `data/document_index.json` after restarts/redeploys. Re-ingest documents after a restart.
 - **Health check:** `/_stcore/health` (Streamlit's built-in endpoint) is used so Render probes the running server.
 
 ---
@@ -178,9 +177,9 @@ streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headl
 
 1. PDF extraction: Each PDF is parsed page-by-page (PyMuPDF). Page texts are cleaned with `text_cleaner.py`.
 2. Chunking: Each page is split into overlapping chunks using LangChain text splitters; metadata (source filename, page number, chunk index) is attached.
-3. Embeddings: Chunks are converted to vector embeddings with SentenceTransformers.
-4. Vector store: ChromaDB stores vectors, documents (the chunk text), and metadata for retrieval.
-5. Retrieval: When the user asks a question, the question is embedded and used to query ChromaDB for the top-K similar chunks.
+3. Vectors: Chunks are converted to compact hashed keyword vectors.
+4. Vector store: A JSON index stores vectors, chunk text, and metadata for retrieval.
+5. Retrieval: The question vector ranks the top-K most relevant chunks.
 6. Prompting & LLM: Retrieved chunks are combined into a context and sent to the configured LLM (OpenAI by default). If no LLM is configured, a fallback summary is returned.
 7. Sources: The app displays the retrieved chunks and their metadata alongside the answer so users can verify the citation.
 
@@ -191,7 +190,7 @@ streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headl
 Basic tests to run manually:
 
 1. Start the app and upload a small PDF (one or two pages).
-2. Process the PDF and verify `data/uploads` and `data/chroma_db` contain artifacts.
+2. Process the PDF and verify `data/uploads` and `data/document_index.json` contain artifacts.
 3. Ask a question that is clearly answered in the PDF and verify the answer and sources.
 4. Upload additional PDFs and verify cross-document retrieval works.
 5. Test edge cases: empty question, unsupported file type, corrupted PDF (app shows error messages).
@@ -207,20 +206,18 @@ Before deploying, keep the following in mind:
 - **Environment variables:** `OPENAI_API_KEY` must be set at runtime for grounded LLM answers. Without it, the app falls back to showing a retrieved-context summary (configurable path only).
 - **Dependencies:** install with `pip install -r requirements.txt` (Python 3.11+ recommended).
 - **Startup command:** `streamlit run app.py`.
-- **File storage:** uploaded PDFs are written to `data/uploads`. On serverless/ephemeral filesystems, persisted PDFs are not kept across restarts — the ChromaDB index (which holds the chunk text) is the source of truth for retrieval.
-- **ChromaDB persistence:** the vector store lives in `data/chroma_db`. This directory must be writable and persistent across restarts for stored documents to survive. It is local-only; multi-user/true serverless deployments should move to a remote ChromaDB backend or re-ingest documents per session.
-- **Embedding model:** `all-MiniLM-L6-v2` is downloaded on first run (network + ~90 MB disk) and loaded into memory (~0.5 GB with the sentence-transformers stack).
-- **Memory:** loading the embedding model plus ChromaDB requires roughly 1 GB RAM. For cloud platforms, request adequate memory.
+- **File storage:** uploaded PDFs and the JSON index are written under `data/`; Render clears them after restarts.
+- **Index persistence:** `data/document_index.json` is local-only. Re-ingest documents after a restart, or use external storage for durable multi-user deployments.
+- **Retrieval quality:** keyword vectors are intentionally lightweight. Exact terms work well; semantic paraphrases are less reliable than transformer embeddings.
 - **LLM requirement:** OpenAI access (network + valid key) is required for production-quality answers. Ensure the runtime can reach `api.openai.com`.
 
-> Note: The source `similarity` value displayed in the UI is a normalized score in `[0, 1]` derived from ChromaDB's distance (higher = more relevant). ChromaDB's default metric is squared-L2, so the ranking (not the raw number) is the meaningful signal.
+> Note: Source similarity is a normalized cosine score in `[0, 1]` from the hashed keyword vectors. Ranking is more meaningful than the raw number.
 
 ---
 
 ## Troubleshooting and Tips
 
-- Slow embedding/model loading: The `sentence-transformers` model will download on first run. This can take time and disk space.
-- ChromaDB errors: If the vector store cannot initialize, ensure you have write permissions to `data/chroma_db` and no file locks.
+- Index errors: Ensure the application has write permission for the `data/` directory.
 - LLM errors: If using OpenAI, confirm `OPENAI_API_KEY` is set and has available quota.
 - Large PDFs: Very large PDFs may create many chunks; consider increasing `CHUNK_SIZE` or reducing upload size.
 

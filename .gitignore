@@ -21,6 +21,8 @@ venv/
 *.db3
 *.sqlite
 data/chroma_db/
+data/document_index.json
+data/document_index.tmp
 data/uploads/
 # Test & tooling caches
 .pytest_cache/

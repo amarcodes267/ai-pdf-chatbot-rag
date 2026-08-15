@@ -14,11 +14,10 @@
 #   - Python version is pinned in the .python-version file.
 #   - Streamlit must bind to $PORT and 0.0.0.0 on Render.
 #   - Health check uses Streamlit's built-in /_stcore/health endpoint.
-#   - The free plan has ~512 MB RAM. Loading the embedding model plus
-#     ChromaDB needs ~1 GB, so prefer at least the "starter" plan for
-#     a smooth experience.
+#   - The lightweight local index is designed to fit Render's 512 MB
+#     free plan. It does not download or load a transformer model.
 #   - The native runtime filesystem is ephemeral: on every deploy or
-#     restart the vector store (data/chroma_db) is recreated and
+#     restart the vector store (data/document_index.json) is recreated and
 #     uploaded PDFs do NOT persist. This is expected for a demo.
 # ======================================================================
 
@@ -39,4 +38,4 @@ services:
         sync: false
       # Optional — override the OpenAI chat model used for answers.
       - key: OPENAI_MODEL
-        value: gpt-3.5-turbo
+        value: gpt-4o-mini

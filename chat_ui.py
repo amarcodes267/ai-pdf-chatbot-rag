@@ -15,20 +15,15 @@ from utils.constants import CHUNK_SIZE, CHUNK_OVERLAP, TOP_K_RESULTS
 
 
 def _already_indexed(vector_store: VectorStore, filename: str) -> bool:
-    try:
-        results = vector_store.collection.get(
-            where={"source": filename},
-            limit=1,
-        )
-        return bool(results.get("ids"))
-    except Exception:
-        return False
+    return vector_store.has_source(filename)
 
 
 def render_chat_ui():
     chat = ChatService()
     rag = RAGService()
     vector_store = VectorStore()
+    if "last_sources" not in st.session_state:
+        st.session_state.last_sources = []
 
     st.header("📤 Upload and Process PDFs")
 
@@ -90,9 +85,10 @@ def render_chat_ui():
 
     if clear:
         chat.clear_chat()
+        st.session_state.last_sources = []
         st.rerun()
 
-    sources = []
+    sources = st.session_state.last_sources
 
     if send:
         if not question or question.strip() == "":
@@ -115,6 +111,7 @@ def render_chat_ui():
                             sources = []
 
                         chat.add_ai_message(answer)
+                        st.session_state.last_sources = sources
 
                     except Exception as e:
                         st.error(f"Error generating answer: {e}")
